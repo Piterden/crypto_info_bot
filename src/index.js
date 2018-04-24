@@ -4,10 +4,18 @@ require('dotenv').load()
 const https = require('https')
 const Telegraf = require('telegraf')
 
+
 const { session } = Telegraf
 const {
-  BOT_USERNAME, BOT_TOKEN, DB_CLIENT, DB_HOST, DB_DATABASE, DB_USERNAME,
-  DB_PASSWORD, DB_CHARSET, COIN_API_KEY,
+  BOT_USERNAME,
+  BOT_TOKEN,
+  COIN_API_KEY,
+  // DB_CLIENT,
+  // DB_HOST,
+  // DB_DATABASE,
+  // DB_USERNAME,
+  // DB_PASSWORD,
+  // DB_CHARSET,
 } = process.env
 
 const PAGE_SIZE = 30
@@ -41,26 +49,32 @@ const bot = new Telegraf(BOT_TOKEN, {
 bot.use(session())
 
 let rates
-let assets
+let exchanges
 
-const pagination = (ns, page) => ({
-  reply_markup: {
-    inline_keyboard: [[
-      page !== 0
-        ? { text: `< Prev ${PAGE_SIZE}`, callback_data: `/${ns}/prev` }
-        : { text: '----------', callback_data: '/noop' },
-      {
-        text: `${page * PAGE_SIZE} - ${(page + 1) * PAGE_SIZE}`,
-        callback_data: '/noop',
-      },
-      page !== (assets.length / PAGE_SIZE) - 1
-        ? { text: `Next ${PAGE_SIZE} >`, callback_data: `/${ns}/next` }
-        : { text: '----------', callback_data: '/noop' },
-    ]],
-  },
-})
+const pagination = (ns, page) => {
+  let assets
+
+  return {
+    reply_markup: {
+      inline_keyboard: [[
+        page !== 0
+          ? { text: `< Prev ${PAGE_SIZE}`, callback_data: `/${ns}/prev` }
+          : { text: '----------', callback_data: '/noop' },
+        {
+          text: `${page * PAGE_SIZE} - ${(page + 1) * PAGE_SIZE}`,
+          callback_data: '/noop',
+        },
+        page !== (assets.length / PAGE_SIZE) - 1
+          ? { text: `Next ${PAGE_SIZE} >`, callback_data: `/${ns}/next` }
+          : { text: '----------', callback_data: '/noop' },
+      ]],
+    },
+  }
+}
 
 const getAssets = () => new Promise((resolve, reject) => {
+  let assets
+
   options.path = '/v1/assets'
 
   const req = https.request(options, (res) => {
@@ -76,11 +90,11 @@ const getAssets = () => new Promise((resolve, reject) => {
         resolve(assets)
       }
       catch (error) {
-        console.log(error)
+        reject(error)
       }
     })
   })
-  
+
   req.end()
 })
 
@@ -100,11 +114,11 @@ const getRates = (name) => new Promise((resolve, reject) => {
         resolve(rates.rates)
       }
       catch (error) {
-        console.log(error)
+        reject(error)
       }
     })
   })
-  
+
   req.end()
 })
 
@@ -133,7 +147,7 @@ bot.command('exchanges', async (ctx) => {
     })
   })
 
-  request.end()  
+  request.end()
 })
 
 bot.command('assets', async (ctx) => {
@@ -141,7 +155,7 @@ bot.command('assets', async (ctx) => {
 
   ctx.session.page = {
     ...ctx.session.page || {},
-    assets: ctx.session.page && ctx.session.page.assets || 0,
+    assets: ctx.session.page ? ctx.session.page.assets : 0,
   }
 
   try {
@@ -155,10 +169,14 @@ bot.command('assets', async (ctx) => {
     await ctx.replyWithMarkdown(
       `*Всего: ${assets.length}*.
 --------------------------------------
-` + assets
-        .slice(ctx.session.page.assets * PAGE_SIZE, (ctx.session.page.assets + 1) * PAGE_SIZE)
-        .map((item) => `*${item.asset_id}* - ${item.name} ${item.type_is_crypto ? '(crypto)' : ''}`)
-        .join('\n'),
+${assets
+    .slice(
+      ctx.session.page.assets * PAGE_SIZE,
+      (ctx.session.page.assets + 1) * PAGE_SIZE
+    )
+    .map((item) => `
+*${item.asset_id}* - ${item.name} ${item.type_is_crypto ? '(crypto)' : ''}`)
+    .join('')}`,
       {
         disable_web_page_preview: true,
         ...pagination('assets', ctx.session.page.assets),
@@ -171,15 +189,15 @@ bot.command('assets', async (ctx) => {
 })
 
 bot.command('commands', async (ctx) => {
-  let assets
+  let commands
 
   ctx.session.page = {
     ...ctx.session.page || {},
-    commands: ctx.session.page && ctx.session.page.commands || 0,
+    commands: ctx.session.page ? ctx.session.page.commands : 0,
   }
 
   try {
-    assets = await getAssets()
+    commands = await getAssets()
   }
   catch (error) {
     console.log(error)
@@ -187,12 +205,13 @@ bot.command('commands', async (ctx) => {
 
   try {
     await ctx.replyWithMarkdown(
-      `*Всего: ${assets.length}*.
+      `*Всего: ${commands.length}*.
 --------------------------------------
-` + assets
-        .slice(ctx.session.page.commands * PAGE_SIZE, (ctx.session.page.commands + 1) * PAGE_SIZE)
-        .map((item) => `/${item.asset_id.toLowerCase()} - *${item.name}*`)
-        .join('\n'),
+${commands
+    .slice(ctx.session.page.commands * PAGE_SIZE, (ctx.session.page.commands + 1) * PAGE_SIZE)
+    .map((item) => `
+/${item.asset_id.toLowerCase()} - *${item.name}*`)
+    .join('')}`,
       {
         disable_web_page_preview: true,
         ...pagination('commands', ctx.session.page.commands),
@@ -205,15 +224,15 @@ bot.command('commands', async (ctx) => {
 })
 
 const mapCommands = async () => {
-  assets = await getAssets()
+  const assets = await getAssets()
 
   assets.forEach((asset) => {
     const command = asset.asset_id.toLowerCase()
-    
+
     bot.command(command, async (ctx) => {
       ctx.session.page = {
         ...ctx.session.page || {},
-        [`rates-${command}`]: ctx.session.page && ctx.session.page[`rates-${command}`] || 0,
+        [`rates-${command}`]: ctx.session.page ? ctx.session.page[`rates-${command}`] : 0,
       }
 
       const data = await getRates(command)
@@ -225,11 +244,11 @@ const mapCommands = async () => {
               ctx.session.page[`rates-${command}`] * PAGE_SIZE,
               (ctx.session.page[`rates-${command}`] + 1) * PAGE_SIZE
             )
-            .map((item) => `To *${item.asset_id_quote}*\n\`${item.rate}\``)
+            .map((item) => `To *${item.asset_id_quote}* \`${item.rate}\``)
             .join('\n'),
           {
             disable_web_page_preview: true,
-            ...pagination(`rates-${command}`, ctx.session.page[`rates-${command}`])
+            ...pagination(`rates-${command}`, ctx.session.page[`rates-${command}`]),
           }
         )
       }
@@ -245,10 +264,10 @@ mapCommands()
 bot.action(
   /^\/(commands|assets|rates-\w+)\/(\w+)$/,
   async (ctx) => {
-    let assets
+    let currentAssets
 
     try {
-      assets = ctx.match[1].includes('rates-')
+      currentAssets = ctx.match[1].includes('rates-')
         ? await getRates(ctx.match[1].replace('rates-', ''))
         : await getAssets()
     }
@@ -257,41 +276,41 @@ bot.action(
     }
 
     switch (ctx.match[2]) {
-      case 'prev': ctx.session.page[ctx.match[1]] > 0
-        ? ctx.session.page[ctx.match[1]]--
+      case 'prev': ctx.session.page[ctx.match[1]] = ctx.session.page[ctx.match[1]] > 0
+        ? ctx.session.page[ctx.match[1]] - 1
         : 0
         break
-      case 'next': ctx.session.page[ctx.match[1]] < (assets.length / PAGE_SIZE) - 1
-        ? ctx.session.page[ctx.match[1]]++
-        : (assets.length / PAGE_SIZE) - 1
+      case 'next': ctx.session.page[ctx.match[1]] = ctx.session.page[ctx.match[1]] < (currentAssets.length / PAGE_SIZE) - 1
+        ? ctx.session.page[ctx.match[1]] + 1
+        : (currentAssets.length / PAGE_SIZE) - 1
         break
       default:
         break
     }
-    
+
     await ctx.editMessageText(
-      `*Всего: ${assets.length}*.
+      `*Всего: ${currentAssets.length}*.
 --------------------------------------
-` + assets
-        .slice(
-          ctx.session.page[ctx.match[1]] * PAGE_SIZE,
-          (ctx.session.page[ctx.match[1]] + 1) * PAGE_SIZE
-        )
-        .map((item) => {
-          switch (ctx.match[1]) {
-            case 'commands': return `/${item.asset_id.toLowerCase()} - *${item.name}*`
-            case 'assets': return `*${item.asset_id}* - ${item.name} ${item.type_is_crypto ? '(crypto)' : ''}`
-            default: return `To *${item.asset_id_quote}*\n\`${item.rate}\``
-          }
-        })
-        .join('\n'),
+${currentAssets
+    .slice(
+      ctx.session.page[ctx.match[1]] * PAGE_SIZE,
+      (ctx.session.page[ctx.match[1]] + 1) * PAGE_SIZE
+    )
+    .map((item) => {
+      switch (ctx.match[1]) {
+        case 'commands': return `/${item.asset_id.toLowerCase()} - *${item.name}*`
+        case 'assets': return `*${item.asset_id}* - ${item.name} ${item.type_is_crypto ? '(crypto)' : ''}`
+        default: return `To *${item.asset_id_quote}* \`${item.rate}\``
+      }
+    })
+    .join('\n')}`,
       {
         disable_web_page_preview: true,
         parse_mode: 'Markdown',
         ...pagination(ctx.match[1], ctx.session.page[ctx.match[1]]),
       }
     )
-    
+
     return ctx.answerCbQuery()
   }
 )
