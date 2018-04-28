@@ -10,6 +10,7 @@
   "author": "Denis Efremov <efremov.a.denis@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "axios": "^0.18.0",
     "dotenv": "^5.0.1",
     "knex": "^0.14.6",
     "nodemon": "^1.17.3",
