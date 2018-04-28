@@ -49,7 +49,7 @@ const bot = new Telegraf(BOT_TOKEN, {
 bot.use(session())
 
 // let rates
-let exchanges
+// let exchanges
 
 // const pagination = (ns, page) => {
 //   let assets
@@ -141,6 +141,39 @@ bot.command('btc', async (ctx) => {
 ${hour > 0 ? '+' : ''}${parseFloat(hour).toFixed(3)}% / 1h
 ${day > 0 ? '+' : ''}${parseFloat(day).toFixed(3)}% / 24h
 ${week > 0 ? '+' : ''}${parseFloat(week).toFixed(3)}% / 7d\`\`\``)
+})
+
+bot.command('rates', async (ctx) => {
+  const { data } = await axios.get(`${COIN_MARKET_API_URL}/?limit=5&convert=RUB`)
+
+
+
+  // const {
+  //   name,
+  //   symbol,
+  //   price_usd,
+  //   price_rub,
+  //   percent_change_1h: hour,
+  //   percent_change_24h: day,
+  //   percent_change_7d: week,
+  // } = data[0]
+
+  await ctx.replyWithMarkdown(JSON.stringify(data, null, '  '))
+
+  // await ctx.replyWithMarkdown(`===================\`\`\`
+// $ ${price_usd}\n₽ ${price_rub}
+// ==================
+// ${hour > 0 ? '+' : ''}${parseFloat(hour).toFixed(3)}% / 1h
+// ${day > 0 ? '+' : ''}${parseFloat(day).toFixed(3)}% / 24h
+// ${week > 0 ? '+' : ''}${parseFloat(week).toFixed(3)}% / 7d\`\`\``)
+
+
+//   await ctx.replyWithMarkdown(`${name} *(${symbol})*
+// ===================\`\`\`\n$ ${price_usd}\n₽ ${price_rub}
+// ==================
+// ${hour > 0 ? '+' : ''}${parseFloat(hour).toFixed(3)}% / 1h
+// ${day > 0 ? '+' : ''}${parseFloat(day).toFixed(3)}% / 24h
+// ${week > 0 ? '+' : ''}${parseFloat(week).toFixed(3)}% / 7d\`\`\``)
 })
 
 bot.command('time', async (ctx) => {
