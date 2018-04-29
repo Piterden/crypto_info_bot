@@ -11,6 +11,7 @@ const {
   BOT_TOKEN,
   COIN_API_KEY,
   COIN_MARKET_API_URL,
+  FIXED_LENGTH,
   // DB_CLIENT,
   // DB_HOST,
   // DB_DATABASE,
@@ -136,51 +137,38 @@ bot.command('btc', async (ctx) => {
   } = res.data[0]
 
   await ctx.replyWithMarkdown(`${name} *(${symbol})*
-===================\`\`\`\n$ ${price_usd}\n₽ ${price_rub}
+===================
+\`\`\`
+$ ${price_usd}
+₽ ${price_rub}
 ==================
-${hour > 0 ? '+' : ''}${parseFloat(hour).toFixed(3)}% / 1h
-${day > 0 ? '+' : ''}${parseFloat(day).toFixed(3)}% / 24h
-${week > 0 ? '+' : ''}${parseFloat(week).toFixed(3)}% / 7d\`\`\``)
+${hour > 0 ? '+' : ''}${parseFloat(hour).toFixed(FIXED_LENGTH)}% / 1h
+${day > 0 ? '+' : ''}${parseFloat(day).toFixed(FIXED_LENGTH)}% / 24h
+${week > 0 ? '+' : ''}${parseFloat(week).toFixed(FIXED_LENGTH)}% / 7d
+\`\`\``)
 })
 
 bot.command('rates', async (ctx) => {
   const { data } = await axios.get(`${COIN_MARKET_API_URL}/?limit=5&convert=RUB`)
 
-
-
-  // const {
-  //   name,
-  //   symbol,
-  //   price_usd,
-  //   price_rub,
-  //   percent_change_1h: hour,
-  //   percent_change_24h: day,
-  //   percent_change_7d: week,
-  // } = data[0]
-
-  await ctx.replyWithMarkdown(JSON.stringify(data, null, '  '))
-
-  // await ctx.replyWithMarkdown(`===================\`\`\`
-// $ ${price_usd}\n₽ ${price_rub}
-// ==================
-// ${hour > 0 ? '+' : ''}${parseFloat(hour).toFixed(3)}% / 1h
-// ${day > 0 ? '+' : ''}${parseFloat(day).toFixed(3)}% / 24h
-// ${week > 0 ? '+' : ''}${parseFloat(week).toFixed(3)}% / 7d\`\`\``)
-
-
-//   await ctx.replyWithMarkdown(`${name} *(${symbol})*
-// ===================\`\`\`\n$ ${price_usd}\n₽ ${price_rub}
-// ==================
-// ${hour > 0 ? '+' : ''}${parseFloat(hour).toFixed(3)}% / 1h
-// ${day > 0 ? '+' : ''}${parseFloat(day).toFixed(3)}% / 24h
-// ${week > 0 ? '+' : ''}${parseFloat(week).toFixed(3)}% / 7d\`\`\``)
+  try {
+    await ctx.replyWithMarkdown(`\`\`\`${data
+      .map((item) => Object.keys(item)
+        .map((key) => `
+${new Array(18 - key.length).fill(' ').join('') + key} : ${item[key]}`)
+        .join(''))
+      .join('\n\n')}\`\`\``)
+  }
+  catch (error) {
+    console.log(error)
+  }
 })
 
 bot.command('time', async (ctx) => {
-  const d = new Date()
+  const date = new Date()
 
   try {
-    await ctx.replyWithMarkdown(`${d.toDateString()} ${d.toTimeString()}`)
+    await ctx.replyWithMarkdown(`${date.toDateString()} ${date.toTimeString()}`)
   }
   catch (error) {
     console.log(error)
