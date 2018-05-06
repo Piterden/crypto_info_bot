@@ -13,8 +13,8 @@
     "axios": "^0.18.0",
     "dotenv": "^5.0.1",
     "knex": "^0.14.6",
-    "nodemon": "^1.17.3",
-    "telegraf": "^3.20.0"
+    "nodemon": "^1.17.4",
+    "telegraf": "^3.21.0"
   },
   "devDependencies": {
     "@atomix/eslint-config": "^6.4.0",

@@ -1,169 +1,207 @@
+/**
+ * The Crypto Info Bot
+ *
+ * @author Denis Efremov <efremov.a.denis@gmail.com>
+ *
+ *
+ *
+ *
+ */
 require('dotenv').load()
 
-// const knex = require('knex')
 const axios = require('axios')
+const { inspect } = require('util')
 const Telegraf = require('telegraf')
 
 
 const { session } = Telegraf
 const {
-  BOT_USERNAME,
+  API_URL,
   BOT_TOKEN,
-  COIN_API_KEY,
-  COIN_MARKET_API_URL,
+  BOT_USERNAME,
+  PAGE_SIZE,
   FIXED_LENGTH,
-  // DB_CLIENT,
-  // DB_HOST,
-  // DB_DATABASE,
-  // DB_USERNAME,
-  // DB_PASSWORD,
-  // DB_CHARSET,
 } = process.env
 
-// const PAGE_SIZE = 30
-const baseUrl = 'https://rest.coinapi.io'
+/**
+ * Debug helper
+ *
+ * @param {Mixed} data The data
+ * @return {Mixed}
+ */
+const debug = (data) => console.log(inspect(data, {
+  showHidden: true,
+  colors: true,
+  depth: 10,
+}))
 
-const options = {
-  headers: {
-    'X-CoinAPI-Key': COIN_API_KEY,
-  },
-}
-
-const bot = new Telegraf(BOT_TOKEN, {
-  telegram: {
-    webhookReply: false,
-  },
-  username: BOT_USERNAME,
-})
-
-/* bot.context.db = knex({
-  client: DB_CLIENT,
-  connection: {
-    host: DB_HOST,
-    user: DB_USERNAME,
-    password: DB_PASSWORD,
-    database: DB_DATABASE,
-    charset: DB_CHARSET,
-  },
-}) */
+/**
+ * Create a new bot instance
+ *
+ * @type {Telegraf}
+ */
+const bot = new Telegraf(BOT_TOKEN, { username: BOT_USERNAME })
 
 bot.use(session())
 
-// let rates
-// let exchanges
+/**
+ * Render pagination buttons
+ *
+ * @param {String} ns The namespace
+ * @param {Number} page The page
+ * @param {Number} total The total
+ * @return {Object} Message parameters
+ */
+const pagination = (ns, page, total) => ({
+  reply_markup: {
+    inline_keyboard: [[
+      page !== 0
+        ? { text: `< Prev ${PAGE_SIZE}`, callback_data: `/${ns}/prev` }
+        : { text: '----------', callback_data: '/noop' },
+      {
+        text: `${page * PAGE_SIZE} - ${(page + 1) * PAGE_SIZE} (${total})`,
+        callback_data: '/noop',
+      },
+      page !== (total / PAGE_SIZE) - 1
+        ? { text: `Next ${PAGE_SIZE} >`, callback_data: `/${ns}/next` }
+        : { text: '----------', callback_data: '/noop' },
+    ]],
+  },
+})
 
-// const pagination = (ns, page) => {
-//   let assets
+/**
+ * Gets the rates.
+ *
+ * @param {Number} start The start
+ * @param {Number} limit The limit
+ * @return {Promise} The rates
+ */
+const getRates = (start, limit) => {
+  let url = `${API_URL}?convert=RUB`
 
-//   return {
-//     reply_markup: {
-//       inline_keyboard: [[
-//         page !== 0
-//           ? { text: `< Prev ${PAGE_SIZE}`, callback_data: `/${ns}/prev` }
-//           : { text: '----------', callback_data: '/noop' },
-//         {
-//           text: `${page * PAGE_SIZE} - ${(page + 1) * PAGE_SIZE}`,
-//           callback_data: '/noop',
-//         },
-//         page !== (assets.length / PAGE_SIZE) - 1
-//           ? { text: `Next ${PAGE_SIZE} >`, callback_data: `/${ns}/next` }
-//           : { text: '----------', callback_data: '/noop' },
-//       ]],
-//     },
-//   }
-// }
+  if (limit) url += `&limit=${limit}`
+  if (start) url += `&start=${start}`
 
-// const getAssets = () => new Promise((resolve, reject) => {
-//   let assets
+  return axios.get(url)
+}
 
-//   options.path = '/v1/assets'
+/**
+ * Gets the rate.
+ *
+ * @param {String} route The route
+ * @return {Promise} The rate
+ */
+const getRate = (route) => axios.get(`${API_URL}${route}/?convert=RUB`)
 
-//   const req = axios.get(options, (res) => {
-//     const chunks = []
-
-//     res.on('data', (chunk) => {
-//       chunks.push(chunk)
-//     })
-
-//     res.on('end', () => {
-//       try {
-//         assets = JSON.parse(chunks.join(''))
-//         resolve(assets)
-//       }
-//       catch (error) {
-//         reject(error)
-//       }
-//     })
-//   })
-
-//   req.end()
-// })
-
-// const getRates = (name) => new Promise((resolve, reject) => {
-//   options.path = `/v1/exchangerate/${name}`
-
-//   const req = axios.get(options, (res) => {
-//     const chunks = []
-
-//     res.on('data', (chunk) => {
-//       chunks.push(chunk)
-//     })
-
-//     res.on('end', () => {
-//       try {
-//         rates = JSON.parse(chunks.join(''))
-//         resolve(rates.rates)
-//       }
-//       catch (error) {
-//         reject(error)
-//       }
-//     })
-//   })
-
-//   req.end()
-// })
-
-bot.command('btc', async (ctx) => {
-  const res = await axios.get(`${COIN_MARKET_API_URL}/bitcoin/?convert=RUB`)
-
-  const {
-    name,
-    symbol,
-    price_usd,
-    price_rub,
-    percent_change_1h: hour,
-    percent_change_24h: day,
-    percent_change_7d: week,
-  } = res.data[0]
-
-  await ctx.replyWithMarkdown(`${name} *(${symbol})*
-===================
+/**
+ * A currency message template
+ *
+ * @param {Object} rate The rate object
+ * @param {String} rate.name The name
+ * @param {String} rate.symbol The symbol
+ * @param {Number} rate.price_usd The price usd
+ * @param {Number} rate.price_rub The price rub
+ * @param {Number} rate.percent_change_1h:hour The percent change 1 h hour
+ * @param {Number} rate.percent_change_24h:day The percent change 24 h day
+ * @param {Number} rate.percent_change_7d:week The percent change 7 d week
+ * @return {String}
+ */
+const template = ({ name, symbol, price_usd, price_rub,
+  percent_change_1h: hour,
+  percent_change_24h: day,
+  percent_change_7d: week,
+}) => `${name} *(${symbol})* /${symbol.toLowerCase()}
 \`\`\`
+==================
 $ ${price_usd}
 ₽ ${price_rub}
 ==================
 ${hour > 0 ? '+' : ''}${parseFloat(hour).toFixed(FIXED_LENGTH)}% / 1h
 ${day > 0 ? '+' : ''}${parseFloat(day).toFixed(FIXED_LENGTH)}% / 24h
 ${week > 0 ? '+' : ''}${parseFloat(week).toFixed(FIXED_LENGTH)}% / 7d
-\`\`\``)
+\`\`\``
+
+/**
+ * A currency message small template
+ *
+ * @param {Object} rate The rate object
+ * @param {String} rate.name The name
+ * @param {String} rate.symbol The symbol
+ * @param {Number} rate.price_usd The price usd
+ * @param {Number} rate.price_rub The price rub
+ * @param {Number} rate.percent_change_1h:hour The percent change 1 h hour
+ * @param {Number} rate.percent_change_24h:day The percent change 24 h day
+ * @param {Number} rate.percent_change_7d:week The percent change 7 d week
+ * @return {String}
+ */
+const smallTemplate = ({ name, symbol, price_usd, price_rub }) => `
+${name} *(${symbol})* /${symbol.toLowerCase()}
+\`\`\`
+$ ${price_usd} | ₽ ${price_rub}
+\`\`\``
+
+/**
+ * Map command listaners
+ *
+ * @param {Object[]} rates The rates
+ * @return {Promise}
+ */
+const mapCommands = async (rates) => rates.reduce((acc, rate) => {
+  const command = rate.symbol.toLowerCase()
+
+  bot.command(command, async (ctx) => {
+    const { data: [item] } = await getRate(ctx.index[command])
+
+    try {
+      await ctx.replyWithMarkdown(template(item))
+    }
+    catch (error) {
+      debug(error)
+    }
+  })
+
+  acc[command] = rate.id
+  return acc
+}, {})
+
+/**
+ * Init the bot
+ *
+ * @param {TelegrafContext} ctx The bot's context
+ */
+getRates().then(async ({ data }) => {
+  bot.context.index = await mapCommands(data)
 })
 
+/**
+ * The rates command
+ *
+ * @param {TelegrafContext} ctx The bot's context
+ */
 bot.command('rates', async (ctx) => {
-  const { data } = await axios.get(`${COIN_MARKET_API_URL}/?limit=5&convert=RUB`)
+  ctx.session.ratesPage = ctx.session.ratesPage || 0
+
+  const { data } = await getRates(
+    ctx.session.ratesPage * PAGE_SIZE,
+    (ctx.session.ratesPage * PAGE_SIZE) + PAGE_SIZE
+  )
 
   try {
-    await ctx.replyWithMarkdown(`\`\`\`${data
-      .map((item) => Object.keys(item)
-        .map((key) => `
-${new Array(18 - key.length).fill(' ').join('') + key} : ${item[key]}`)
-        .join(''))
-      .join('\n\n')}\`\`\``)
+    await ctx.replyWithMarkdown(
+      data.map(smallTemplate).join(''),
+      pagination('rates', ctx.session.ratesPage, Object.keys(ctx.index).length),
+    )
   }
   catch (error) {
-    console.log(error)
+    debug(error)
   }
 })
 
+/**
+ * The time command
+ *
+ * @param {TelegrafContext} ctx The bot's context
+ */
 bot.command('time', async (ctx) => {
   const date = new Date()
 
@@ -171,199 +209,51 @@ bot.command('time', async (ctx) => {
     await ctx.replyWithMarkdown(`${date.toDateString()} ${date.toTimeString()}`)
   }
   catch (error) {
-    console.log(error)
+    debug(error)
   }
 })
 
-bot.command('exchanges', async (ctx) => {
-  const response = await axios.get(`${baseUrl}/v1/exchanges`, options)
+/**
+ * Change page action
+ *
+ * @param {TelegrafContext} ctx The bot's context
+ */
+bot.action(/^\/rates\/(\w+)$/, async (ctx) => {
+  const current = ctx.session.ratesPage || 0
+  const allKeys = Object.keys(ctx.index)
+
+  switch (ctx.match[1]) {
+    case 'prev':
+      ctx.session.ratesPage = current > 0
+        ? current - 1
+        : 0
+      break
+    case 'next':
+      // eslint-disable-next-line max-len
+      ctx.session.ratesPage = current < (allKeys.length / PAGE_SIZE) - 1
+        ? current + 1
+        : (allKeys.length / PAGE_SIZE) - 1
+      break
+    default:
+  }
+
+  const { data } = await getRates(ctx.session.ratesPage * PAGE_SIZE, PAGE_SIZE)
 
   try {
-    await ctx.replyWithMarkdown(
-      response.data
-        .map((item) => `*${item.exchange_id}* - [${item.name}](${item.website})`)
-        .join('\n'),
-      { disable_web_page_preview: true }
+    await ctx.editMessageText(
+      data.map(smallTemplate).join(''),
+      {
+        disable_web_page_preview: true,
+        parse_mode: 'Markdown',
+        ...pagination('rates', ctx.session.ratesPage, allKeys.length),
+      }
     )
   }
   catch (error) {
-    console.log(error)
+    debug(error)
   }
+
+  return ctx.answerCbQuery()
 })
-
-// bot.on('inline_query', (ctx) => {
-//   let code = ctx.update.inline_query.query
-
-//   return ctx.answerInlineQuery([])
-// })
-
-// bot.command('assets', async (ctx) => {
-//   let assets
-
-//   ctx.session.page = {
-//     ...ctx.session.page || {},
-//     assets: ctx.session.page ? ctx.session.page.assets : 0,
-//   }
-
-//   try {
-//     assets = await getAssets()
-//   }
-//   catch (error) {
-//     console.log(error)
-//   }
-
-//   try {
-//     await ctx.replyWithMarkdown(
-//       `*Всего: ${assets.length}*.
-// --------------------------------------
-// ${assets
-//     .slice(
-//       ctx.session.page.assets * PAGE_SIZE,
-//       (ctx.session.page.assets + 1) * PAGE_SIZE
-//     )
-//     .map((item) => `
-// *${item.asset_id}* - ${item.name} ${item.type_is_crypto ? '(crypto)' : ''}`)
-//     .join('')}`,
-//       {
-//         disable_web_page_preview: true,
-//         ...pagination('assets', ctx.session.page.assets),
-//       }
-//     )
-//   }
-//   catch (error) {
-//     console.log(error)
-//   }
-// })
-
-// bot.command('commands', async (ctx) => {
-//   let commands
-
-//   ctx.session.page = {
-//     ...ctx.session.page || {},
-//     commands: ctx.session.page ? ctx.session.page.commands : 0,
-//   }
-
-//   try {
-//     commands = await getAssets()
-//   }
-//   catch (error) {
-//     console.log(error)
-//   }
-
-//   try {
-//     await ctx.replyWithMarkdown(
-//       `*Всего: ${commands.length}*.
-// --------------------------------------
-// ${commands
-//     .slice(ctx.session.page.commands * PAGE_SIZE, (ctx.session.page.commands + 1) * PAGE_SIZE)
-//     .map((item) => `
-// /${item.asset_id.toLowerCase()} - *${item.name}*`)
-//     .join('')}`,
-//       {
-//         disable_web_page_preview: true,
-//         ...pagination('commands', ctx.session.page.commands),
-//       }
-//     )
-//   }
-//   catch (error) {
-//     console.log(error)
-//   }
-// })
-
-// const mapCommands = async () => {
-//   const assets = await getAssets()
-
-//   assets.forEach((asset) => {
-//     const command = asset.asset_id.toLowerCase()
-
-//     bot.command(command, async (ctx) => {
-//       ctx.session.page = {
-//         ...ctx.session.page || {},
-//         [`rates-${command}`]: ctx.session.page ? ctx.session.page[`rates-${command}`] : 0,
-//       }
-
-//       const data = await getRates(command)
-
-//       try {
-//         await ctx.replyWithMarkdown(
-//           data
-//             .slice(
-//               ctx.session.page[`rates-${command}`] * PAGE_SIZE,
-//               (ctx.session.page[`rates-${command}`] + 1) * PAGE_SIZE
-//             )
-//             .map((item) => `To *${item.asset_id_quote}* \`${item.rate}\``)
-//             .join('\n'),
-//           {
-//             disable_web_page_preview: true,
-//             ...pagination(`rates-${command}`, ctx.session.page[`rates-${command}`]),
-//           }
-//         )
-//       }
-//       catch (error) {
-//         console.log(error)
-//       }
-//     })
-//   })
-// }
-
-// mapCommands()
-
-// bot.action(
-//   /^\/(commands|assets|rates-\w+)\/(\w+)$/,
-//   async (ctx) => {
-//     let currentAssets
-
-//     try {
-//       currentAssets = ctx.match[1].includes('rates-')
-//         ? await getRates(ctx.match[1].replace('rates-', ''))
-//         : await getAssets()
-//     }
-//     catch (error) {
-//       console.log(error)
-//     }
-
-//     switch (ctx.match[2]) {
-//       case 'prev': ctx.session.page[ctx.match[1]] = ctx.session.page[ctx.match[1]] > 0
-//         ? ctx.session.page[ctx.match[1]] - 1
-//         : 0
-//         break
-//       case 'next':
-// eslint-disable-next-line max-len
-//         ctx.session.page[ctx.match[1]] = ctx.session.page[ctx.match[1]] < (currentAssets.length / PAGE_SIZE) - 1
-//         ? ctx.session.page[ctx.match[1]] + 1
-//         : (currentAssets.length / PAGE_SIZE) - 1
-//         break
-//       default:
-//         break
-//     }
-
-//     await ctx.editMessageText(
-//       `*Всего: ${currentAssets.length}*.
-// --------------------------------------
-// ${currentAssets
-//     .slice(
-//       ctx.session.page[ctx.match[1]] * PAGE_SIZE,
-//       (ctx.session.page[ctx.match[1]] + 1) * PAGE_SIZE
-//     )
-//     .map((item) => {
-//       switch (ctx.match[1]) {
-//         case 'commands': return `/${item.asset_id.toLowerCase()} - *${item.name}*`
-//         case 'assets': return `*${item.asset_id}* - ${item.name} ${item.type_is_crypto
-//           ? '(crypto)'
-//           : ''}`
-//         default: return `To *${item.asset_id_quote}* \`${item.rate}\``
-//       }
-//     })
-//     .join('\n')}`,
-//       {
-//         disable_web_page_preview: true,
-//         parse_mode: 'Markdown',
-//         ...pagination(ctx.match[1], ctx.session.page[ctx.match[1]]),
-//       }
-//     )
-
-//     return ctx.answerCbQuery()
-//   }
-// )
 
 bot.startPolling()
