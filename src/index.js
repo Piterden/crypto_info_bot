@@ -214,6 +214,21 @@ bot.command('time', async (ctx) => {
 })
 
 /**
+ * The currencies list command
+ *
+ * @param {TelegrafContext} ctx The bot's context
+ */
+bot.command('list', async (ctx) => {
+  try {
+    await ctx.replyWithMarkdown(Object.keys(ctx.index).map((key) => `
+${ctx.index[key]} /${key}`).join(''))
+  }
+  catch (error) {
+    debug(error)
+  }
+})
+
+/**
  * Change page action
  *
  * @param {TelegrafContext} ctx The bot's context
