@@ -9,6 +9,12 @@
  */
 require('dotenv').load()
 
+const formattedTime = (date) => date.toTimeString()
+
+const formattedDate = (date) => date.toDateString()
+
+const formattedDateTime = (date) => `${formattedDate(date)} ${formattedTime(date)}`
+
 const axios = require('axios')
 const { inspect } = require('util')
 const Telegraf = require('telegraf')
@@ -140,7 +146,6 @@ ${name} *(${symbol})* /${symbol.toLowerCase()}
 $ ${price_usd} | ₽ ${price_rub}
 \`\`\``
 
-const formattedDate = (date) => `${date.toDateString()} ${date.toTimeString()}`
 
 /**
  * Map command listaners
@@ -152,6 +157,7 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
   const command = rate.symbol.toLowerCase()
 
   bot.command(command, async (ctx) => {
+    let text
     let message
     let response
 
@@ -163,8 +169,11 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
       clearInterval(intervalId)
     }
 
+    text = template(response.data[0])
+
     try {
-      message = await ctx.replyWithMarkdown(template(response.data[0]))
+      message = await ctx.replyWithMarkdown(`${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`)
+      message.text = text
     }
     catch (error) {
       debug(error)
@@ -180,20 +189,21 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
         clearInterval(intervalId)
       }
 
-      const text = template(response.data[0])
+      text = template(response.data[0])
 
-      if (text.replace(/(?:\n)?```|\*|_/g, '') === message.text) {
+      if (text === message.text) {
         return
       }
 
       try {
-        await ctx.tg.editMessageText(
+        message = await ctx.tg.editMessageText(
           ctx.chat.id,
           message.message_id,
           undefined,
-          text,
+          `${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`,
           { parse_mode: 'Markdown' }
         )
+        message.text = text
       }
       catch (error) {
         debug(error)
