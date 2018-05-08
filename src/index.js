@@ -140,6 +140,8 @@ ${name} *(${symbol})* /${symbol.toLowerCase()}
 $ ${price_usd} | ₽ ${price_rub}
 \`\`\``
 
+const formattedDate = (date) => `${date.toDateString()} ${date.toTimeString()}`
+
 /**
  * Map command listaners
  *
@@ -150,14 +152,54 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
   const command = rate.symbol.toLowerCase()
 
   bot.command(command, async (ctx) => {
-    const { data: [item] } = await getRate(ctx.index[command])
+    let message
+    let response
 
     try {
-      await ctx.replyWithMarkdown(template(item))
+      response = await getRate(ctx.index[command])
     }
     catch (error) {
       debug(error)
+      clearInterval(intervalId)
     }
+
+    try {
+      message = await ctx.replyWithMarkdown(template(response.data[0]))
+    }
+    catch (error) {
+      debug(error)
+      clearInterval(intervalId)
+    }
+
+    const intervalId = setInterval(async () => {
+      try {
+        response = await getRate(ctx.index[command])
+      }
+      catch (error) {
+        debug(error)
+        clearInterval(intervalId)
+      }
+
+      const text = template(response.data[0])
+
+      if (text.replace(/(?:\n)?```|\*|_/g, '') === message.text) {
+        return
+      }
+
+      try {
+        await ctx.tg.editMessageText(
+          ctx.chat.id,
+          message.message_id,
+          undefined,
+          text,
+          { parse_mode: 'Markdown' }
+        )
+      }
+      catch (error) {
+        debug(error)
+        clearInterval(intervalId)
+      }
+    }, 5000)
   })
 
   acc[command] = rate.id
@@ -203,14 +245,32 @@ bot.command('rates', async (ctx) => {
  * @param {TelegrafContext} ctx The bot's context
  */
 bot.command('time', async (ctx) => {
-  const date = new Date()
+  let message
+  let date = new Date()
 
   try {
-    await ctx.replyWithMarkdown(`${date.toDateString()} ${date.toTimeString()}`)
+    message = await ctx.replyWithMarkdown(formattedDate(date))
   }
   catch (error) {
     debug(error)
   }
+
+  const intervalId = setInterval(async () => {
+    date = new Date()
+
+    try {
+      await ctx.tg.editMessageText(
+        ctx.chat.id,
+        message.message_id,
+        undefined,
+        formattedDate(date)
+      )
+    }
+    catch (error) {
+      debug(error)
+      clearInterval(intervalId)
+    }
+  }, 5000)
 })
 
 /**
