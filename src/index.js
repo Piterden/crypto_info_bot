@@ -5,13 +5,14 @@
  */
 require('dotenv').load()
 
-const apiai = require('apiai')
+// const apiai = require('apiai')
 const axios = require('axios')
-const webshot = require('webshot')
+// const webshot = require('webshot')
 const { inspect } = require('util')
 const Telegraf = require('telegraf')
 
-const app = apiai('b3bade079394430ab08ca3cf31f1a9e3')
+
+// const app = apiai('b3bade079394430ab08ca3cf31f1a9e3')
 
 const { session } = Telegraf
 const {
@@ -36,7 +37,7 @@ const debug = (data) => console.log(inspect(data, {
 
 const formattedTime = (date) => date.toTimeString()
 const formattedDate = (date) => date.toDateString()
-const formattedDateTime = (date) => `${formattedDate(date)} ${formattedTime(date)}`
+// const formattedDateTime = (date) => `${formattedDate(date)} ${formattedTime(date)}`
 
 /**
  * Create a new bot instance
@@ -109,7 +110,8 @@ const getRate = (route) => axios.get(`${API_URL}${route}/?convert=RUB`)
  * @param {Number} rate.percent_change_7d:week The percent change 7 d week
  * @return {String}
  */
-const template = ({ name, symbol, price_usd, price_rub,
+const template = ({
+  name, symbol, price_usd, price_rub,
   percent_change_1h: hour,
   percent_change_24h: day,
   percent_change_7d: week,
@@ -157,6 +159,7 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
     let text
     let message
     let response
+    let intervalId
 
     try {
       response = await getRate(ctx.index[command])
@@ -177,7 +180,7 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
       clearInterval(intervalId)
     }
 
-    const intervalId = setInterval(async () => {
+    intervalId = setInterval(async () => {
       try {
         response = await getRate(ctx.index[command])
       }
@@ -214,74 +217,75 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
   return acc
 }, {})
 
-bot.on('inline_query', async (ctx) => {
-  let str = ctx.update.inline_query.query
+// bot.on('inline_query', async (ctx) => {
+//   let str = ctx.update.inline_query.query
 
-  const params = str.split(' ')
-    .map((param) => param.split('='))
-    .reduce((acc, cur) => {
-      acc[cur[0]] = cur[1]
-      return acc
-    }, {})
+// const params = str.split(' ')
+//   .map((param) => param.split('='))
+//   .reduce((acc, [key, value]) => {
+//     acc[key] = value
 
-  await Promise.all([
-    async () => {
-      try {
-        await ctx.answerInlineQuery({ source: webshot(
-          `https://core.jochen-hoenicke.de/queue/#${params.time || '24h'}`,
-          {
-            captureSelector: '#chartContainer1',
-            renderDelay: 1000,
-          }
-        ) })
-      }
-      catch (error) {
-        debug(error)
-      }
-    },
-    async () => {
-      try {
-        await ctx.replyWithPhoto({ source: webshot(
-          `https://core.jochen-hoenicke.de/queue/#${params.time || '24h'}`,
-          {
-            captureSelector: '#chartContainer2',
-          }
-        ) })
-      }
-      catch (error) {
-        debug(error)
-      }
-    },
-    async () => {
-      try {
-        await ctx.replyWithPhoto({ source: webshot(
-          `https://core.jochen-hoenicke.de/queue/#${params.time || '24h'}`,
-          {
-            captureSelector: '#chartContainer3',
-          }
-        ) })
-      }
-      catch (error) {
-        debug(error)
-      }
-    },
-  ])
+//     return acc
+//   }, {})
 
-      // source: webshot(
-      //   'https://etherscan.io/token/tokenholderchart/0xd0b6676ee485b53d4df756a6df89ac048259de01',
-      //   {
-      //     captureSelector: '#container svg',
-      //     renderDelay: 1000,
-      //   }
-      // )
-      // source: webshot(
-      //   'www.cryptocurrencychart.com/chart/BTC,ETH,XRP,BCH2,EOS,LTC,ADA,XLM,IOT,TRX2,ANS2,DASH,XMR,XEM,BCN,VEN,ETC,USDT,QTUM,ICX,OMG,BNB2,LSK,BTG3,XVG/price/USD/logarithmic/2017-05-08/2018-05-08',
-      //   {
-      //     captureSelector: '#chart',
-      //     renderDelay: 1000,
-      //   }
-      // )
-})
+// await Promise.all([
+//   async () => {
+//     try {
+//       await ctx.answerInlineQuery({ source: webshot(
+//         `https://core.jochen-hoenicke.de/queue/#${params.time || '24h'}`,
+//         {
+//           captureSelector: '#chartContainer1',
+//           renderDelay: 1000,
+//         }
+//       ) })
+//     }
+//     catch (error) {
+//       debug(error)
+//     }
+//   },
+//   async () => {
+//     try {
+//       await ctx.replyWithPhoto({ source: webshot(
+//         `https://core.jochen-hoenicke.de/queue/#${params.time || '24h'}`,
+//         {
+//           captureSelector: '#chartContainer2',
+//         }
+//       ) })
+//     }
+//     catch (error) {
+//       debug(error)
+//     }
+//   },
+//   async () => {
+//     try {
+//       await ctx.replyWithPhoto({ source: webshot(
+//         `https://core.jochen-hoenicke.de/queue/#${params.time || '24h'}`,
+//         {
+//           captureSelector: '#chartContainer3',
+//         }
+//       ) })
+//     }
+//     catch (error) {
+//       debug(error)
+//     }
+//   },
+// ])
+
+// source: webshot(
+//   'https://etherscan.io/token/tokenholderchart/0xd0b6676ee485b53d4df756a6df89ac048259de01',
+//   {
+//     captureSelector: '#container svg',
+//     renderDelay: 1000,
+//   }
+// )
+// source: webshot(
+//   'www.cryptocurrencychart.com/chart/BTC,ETH,XRP,BCH2,EOS,LTC,ADA,XLM,IOT,TRX2,ANS2,DASH,XMR,XEM,BCN,VEN,ETC,USDT,QTUM,ICX,OMG,BNB2,LSK,BTG3,XVG/price/USD/logarithmic/2017-05-08/2018-05-08',
+//   {
+//     captureSelector: '#chart',
+//     renderDelay: 1000,
+//   }
+// )
+// })
 
 /**
  * Init the bot
@@ -357,15 +361,13 @@ bot.command('time', async (ctx) => {
  */
 bot.command('list', async (ctx) => {
   try {
-    await ctx.replyWithMarkdown(
-      Object.keys(ctx.index).map((key) => `
-${ctx.index[key]} /${key}`).join('')
-      // { reply_markup: {
-      //   keyboard: [[
-      //     { text: 'Send Location', request_location: true }
-      //   ]]
-      // } }
-    )
+    await ctx.replyWithMarkdown(Object.keys(ctx.index).map((key) => `
+${ctx.index[key]} /${key}`).join(''))
+    // { reply_markup: {
+    //   keyboard: [[
+    //     { text: 'Send Location', request_location: true }
+    //   ]]
+    // } }
   }
   catch (error) {
     debug(error)
