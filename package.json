@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node_modules/.bin/nodemon -w src src/index.js"
+    "dev": "node_modules/.bin/nodemon -w src src/index.js",
+    "lint": "node_modules/.bin/eslint --fix src"
   },
   "author": "Denis Efremov <efremov.a.denis@gmail.com>",
   "license": "MIT",
@@ -14,8 +15,8 @@
     "axios": "^0.18.0",
     "dotenv": "^5.0.1",
     "knex": "^0.14.6",
-    "nodemon": "^1.17.4",
-    "telegraf": "^3.21.0",
+    "nodemon": "^1.18.4",
+    "telegraf": "^3.24.0",
     "webshot": "^0.18.0"
   },
   "devDependencies": {
