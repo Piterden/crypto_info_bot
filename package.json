@@ -13,6 +13,7 @@
   "dependencies": {
     "apiai": "^4.0.3",
     "axios": "^0.18.0",
+    "cryptiles": ">=4.1.2",
     "dotenv": "^5.0.1",
     "knex": "^0.14.6",
     "nodemon": "^1.18.6",
