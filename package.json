@@ -16,8 +16,8 @@
     "cryptiles": ">=4.1.2",
     "dotenv": "^5.0.1",
     "knex": "^0.14.6",
-    "nodemon": "^1.18.7",
-    "telegraf": "^3.25.0",
+    "nodemon": "^1.18.9",
+    "telegraf": "^3.25.5",
     "webshot": "^0.18.0"
   },
   "devDependencies": {
