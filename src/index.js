@@ -330,6 +330,7 @@ bot.action(/^\/rates\/(\w+)$/, async (ctx) => {
   return ctx.answerCbQuery()
 })
 
-initBot()
+initBot().then(() => {
+  bot.startPolling()
+})
 
-bot.startPolling()
