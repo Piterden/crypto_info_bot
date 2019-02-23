@@ -6,6 +6,7 @@
 require('dotenv').load()
 
 const axios = require('axios')
+const winston = require('winston')
 const { inspect } = require('util')
 const Telegraf = require('telegraf')
 
@@ -30,6 +31,15 @@ const debug = (data) => console.log(inspect(data, {
   colors: true,
   depth: 10,
 }))
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.File({ filename: 'log/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'log/combined.log' }),
+  ],
+})
 
 const formattedTime = (date) => date.toTimeString()
 const formattedDate = (date) => date.toDateString()
@@ -111,7 +121,7 @@ const getRate = (asset) => axios.get(`${API_URL}${asset}/?convert=RUB`)
  * @param {Number} rate.percent_change_7d:week The percent change 7 d week
  * @return {String}
  */
-const template = ({ name, symbol, price_usd, price_rub,
+const templateMd = ({ name, symbol, price_usd, price_rub,
   percent_change_1h: hour,
   percent_change_24h: day,
   percent_change_7d: week,
@@ -134,12 +144,9 @@ ${week > 0 ? '+' : ''}${parseFloat(week).toFixed(FIXED_LENGTH)}% / 7d
  * @param {String} rate.symbol The symbol
  * @param {Number} rate.price_usd The price usd
  * @param {Number} rate.price_rub The price rub
- * @param {Number} rate.percent_change_1h:hour The percent change 1 h hour
- * @param {Number} rate.percent_change_24h:day The percent change 24 h day
- * @param {Number} rate.percent_change_7d:week The percent change 7 d week
  * @return {String}
  */
-const smallTemplate = ({ name, symbol, price_usd, price_rub }) => `
+const smallTemplateMd = ({ name, symbol, price_usd, price_rub }) => `
 ${name} *(${symbol})* /${symbol.toLowerCase()}
 \`\`\`
 $ ${price_usd} | ₽ ${price_rub}
@@ -155,59 +162,44 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
   const command = rate.symbol.toLowerCase()
 
   bot.command(command, async (ctx) => {
-    let text
-    let message
-    let response
     let intervalId
-
-    try {
-      response = await getRate(ctx.index[command])
-    }
-    catch (error) {
+    let response = await getRate(ctx.index[command]).catch((error) => {
       debug(error)
       clearInterval(intervalId)
-    }
-
-    text = template(response.data[0])
-
-    try {
-      message = await ctx.replyWithMarkdown(`${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`)
-      message.text = text
-    }
-    catch (error) {
+    })
+    let text = templateMd(response.data[0])
+    let message = await ctx.replyWithMarkdown(
+      `${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`
+    ).catch((error) => {
       debug(error)
       clearInterval(intervalId)
-    }
+    })
+
+    message.text = text
 
     intervalId = setInterval(async () => {
-      try {
-        response = await getRate(ctx.index[command])
-      }
-      catch (error) {
+      response = await getRate(ctx.index[command]).catch((error) => {
         debug(error)
         clearInterval(intervalId)
-      }
+      })
 
-      text = template(response.data[0])
+      text = templateMd(response.data[0])
 
       if (text === message.text) {
         return
       }
 
-      try {
-        message = await ctx.tg.editMessageText(
-          ctx.chat.id,
-          message.message_id,
-          undefined,
-          `${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`,
-          { parse_mode: 'Markdown' }
-        )
-        message.text = text
-      }
-      catch (error) {
+      message = await ctx.tg.editMessageText(
+        ctx.chat.id,
+        message.message_id,
+        undefined,
+        `${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`,
+        { parse_mode: 'Markdown' }
+      ).catch((error) => {
         debug(error)
         clearInterval(intervalId)
-      }
+      })
+      message.text = text
     }, 5000)
   })
 
@@ -216,16 +208,11 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
   return acc
 }, {})
 
-/**
- * Init the bot
- *
- * @param {TelegrafContext} ctx The bot's context
- */
-const initBot = async () => {
-  const { data } = await getRates().catch(console.log)
-
-  bot.context.index = await mapCommands(data)
-}
+bot.use((ctx, next) => {
+  logger.log({ level: 'info', message: ctx.message })
+  debug(ctx.message)
+  next()
+})
 
 /**
  * The rates command
@@ -240,15 +227,10 @@ bot.command('rates', async (ctx) => {
     (ctx.session.ratesPage * PAGE_SIZE) + PAGE_SIZE
   )
 
-  try {
-    await ctx.replyWithMarkdown(
-      data.map(smallTemplate).join(''),
-      pagination('rates', ctx.session.ratesPage, Object.keys(ctx.index).length),
-    )
-  }
-  catch (error) {
-    debug(error)
-  }
+  await ctx.replyWithMarkdown(
+    data.map(smallTemplateMd).join(''),
+    pagination('rates', ctx.session.ratesPage, Object.keys(ctx.index).length),
+  ).catch(debug)
 })
 
 /**
@@ -261,19 +243,16 @@ bot.command('time', async (ctx) => {
     .catch(debug)
 
   const intervalId = setInterval(async () => {
-    try {
-      await ctx.tg.editMessageText(
-        ctx.chat.id,
-        message.message_id,
-        undefined,
-        formattedDateTime(new Date())
-      )
-    }
-    catch (error) {
+    await ctx.tg.editMessageText(
+      ctx.chat.id,
+      message.message_id,
+      undefined,
+      formattedDateTime(new Date())
+    ).catch((error) => {
       debug(error)
       clearInterval(intervalId)
-    }
-  }, 1000)
+    })
+  }, 3000)
 })
 
 /**
@@ -287,8 +266,6 @@ bot.command('list', async (ctx) => {
     .join('')
 
   await ctx.replyWithMarkdown(text).catch(debug)
-
-  return
 })
 
 /**
@@ -319,7 +296,7 @@ bot.action(/^\/rates\/(\w+)$/, async (ctx) => {
     .catch(debug)
 
   await ctx.editMessageText(
-    data.map(smallTemplate).join(''),
+    data.map(smallTemplateMd).join(''),
     {
       disable_web_page_preview: true,
       parse_mode: 'Markdown',
@@ -330,7 +307,19 @@ bot.action(/^\/rates\/(\w+)$/, async (ctx) => {
   return ctx.answerCbQuery()
 })
 
-initBot().then(() => {
-  bot.startPolling()
-})
+/**
+ * Init the bot
+ *
+ * @param {TelegrafContext} ctx The bot's context
+ */
++async function (instance) {
+  const { data } = await getRates().catch(console.log)
+
+  instance.context.index = await mapCommands(data)
+
+  return instance
+}(bot)
+  .then((instance) => {
+    instance.startPolling()
+  })
 

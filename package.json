@@ -17,8 +17,9 @@
   "dependencies": {
     "axios": "^0.18.0",
     "dotenv": "^5.0.1",
-    "nodemon": "^1.18.9",
-    "telegraf": "^3.25.5"
+    "nodemon": "^1.18.10",
+    "telegraf": "^3.27.1",
+    "winston": "^3.2.1"
   },
   "devDependencies": {
     "@atomix/eslint-config": "^6.4.0",
