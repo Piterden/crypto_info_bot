@@ -121,7 +121,8 @@ const getRate = (asset) => axios.get(`${API_URL}${asset}/?convert=RUB`)
  * @param {Number} rate.percent_change_7d:week The percent change 7 d week
  * @return {String}
  */
-const templateMd = ({ name, symbol, price_usd, price_rub,
+const templateMd = ({
+  name, symbol, price_usd, price_rub,
   percent_change_1h: hour,
   percent_change_24h: day,
   percent_change_7d: week,
@@ -168,9 +169,7 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
       clearInterval(intervalId)
     })
     let text = templateMd(response.data[0])
-    let message = await ctx.replyWithMarkdown(
-      `${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`
-    ).catch((error) => {
+    let message = await ctx.replyWithMarkdown(`${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`).catch((error) => {
       debug(error)
       clearInterval(intervalId)
     })
@@ -312,14 +311,16 @@ bot.action(/^\/rates\/(\w+)$/, async (ctx) => {
  *
  * @param {TelegrafContext} ctx The bot's context
  */
-+async function (instance) {
+const run = async (instance) => {
   const { data } = await getRates().catch(console.log)
 
+  // eslint-disable-next-line no-param-reassign
   instance.context.index = await mapCommands(data)
 
   return instance
-}(bot)
-  .then((instance) => {
-    instance.startPolling()
-  })
+}
+
+run(bot).then((instance) => {
+  instance.startPolling()
+})
 
