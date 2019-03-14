@@ -1,6 +1,6 @@
 # Crypto Info Bot
 
-
+[![Build Status](https://travis-ci.com/Piterden/crypto_info_bot.svg?branch=master)](https://travis-ci.com/Piterden/crypto_info_bot)
 
 ## Overview
 

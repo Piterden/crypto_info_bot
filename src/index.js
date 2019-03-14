@@ -283,7 +283,6 @@ bot.action(/^\/rates\/(\w+)$/, async (ctx) => {
         : 0
       break
     case 'next':
-      // eslint-disable-next-line max-len
       ctx.session.ratesPage = current < (allKeys.length / PAGE_SIZE) - 1
         ? current + 1
         : (allKeys.length / PAGE_SIZE) - 1
