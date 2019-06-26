@@ -306,6 +306,13 @@ bot.action(/^\/rates\/(\w+)$/, async (ctx) => {
 })
 
 /**
+ * Handles noop actions
+ *
+ * @param {TelegrafContext} ctx The bot's context
+ */
+bot.action(/^\/noop$/, async (ctx) => ctx.answerCbQuery())
+
+/**
  * Init the bot
  *
  * @param {TelegrafContext} ctx The bot's context
