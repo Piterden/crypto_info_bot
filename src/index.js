@@ -10,7 +10,6 @@ const winston = require('winston')
 const { inspect } = require('util')
 const Telegraf = require('telegraf')
 
-
 const { session } = Telegraf
 const {
   API_URL,
@@ -162,14 +161,16 @@ $ ${price_usd} | ₽ ${price_rub}
 const mapCommands = async (rates) => rates.reduce((acc, rate) => {
   const command = rate.symbol.toLowerCase()
 
-  bot.command(command, async (ctx) => {
+  bot.hears(`!${command}`, async (ctx) => {
     let intervalId
     let response = await getRate(ctx.index[command]).catch((error) => {
       debug(error)
       clearInterval(intervalId)
     })
     let text = templateMd(response.data[0])
-    let message = await ctx.replyWithMarkdown(`${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`).catch((error) => {
+    let message = await ctx.replyWithMarkdown(
+      `${text}\nUpdated: ${formattedTime(new Date()).slice(0, 8)}`
+    ).catch((error) => {
       debug(error)
       clearInterval(intervalId)
     })
@@ -218,7 +219,7 @@ bot.use((ctx, next) => {
  *
  * @param {TelegrafContext} ctx The bot's context
  */
-bot.command('rates', async (ctx) => {
+bot.hears('!rates', async (ctx) => {
   ctx.session.ratesPage = ctx.session.ratesPage || 0
 
   const { data } = await getRates(
@@ -237,7 +238,7 @@ bot.command('rates', async (ctx) => {
  *
  * @param {TelegrafContext} ctx The bot's context
  */
-bot.command('time', async (ctx) => {
+bot.hears('!time', async (ctx) => {
   const message = await ctx.replyWithMarkdown(formattedDateTime(new Date()))
     .catch(debug)
 
@@ -259,7 +260,7 @@ bot.command('time', async (ctx) => {
  *
  * @param {TelegrafContext} ctx The bot's context
  */
-bot.command('list', async (ctx) => {
+bot.hears('!list', async (ctx) => {
   const text = Object.keys(ctx.index)
     .map((key) => `\n${ctx.index[key]} /${key}`)
     .join('')
@@ -320,12 +321,15 @@ bot.action(/^\/noop$/, async (ctx) => ctx.answerCbQuery())
 const run = async (instance) => {
   const { data } = await getRates().catch(console.log)
 
-  // eslint-disable-next-line no-param-reassign
   instance.context.index = await mapCommands(data)
-
   return instance
 }
 
+/**
+ * Start the bot
+ *
+ * @param {Telegraf} instance The bot instance
+ */
 run(bot).then((instance) => {
   instance.startPolling()
 })
