@@ -125,7 +125,7 @@ const templateMd = ({
   percent_change_1h: hour,
   percent_change_24h: day,
   percent_change_7d: week,
-}) => `${name} *(${symbol})* /${symbol.toLowerCase()}
+}) => `${name} *(${symbol})* \`!${symbol.toLowerCase()}\`
 \`\`\`
 ==================
 $ ${price_usd}
@@ -147,7 +147,7 @@ ${week > 0 ? '+' : ''}${parseFloat(week).toFixed(FIXED_LENGTH)}% / 7d
  * @return {String}
  */
 const smallTemplateMd = ({ name, symbol, price_usd, price_rub }) => `
-${name} *(${symbol})* /${symbol.toLowerCase()}
+${name} *(${symbol})* \`!${symbol.toLowerCase()}\`
 \`\`\`
 $ ${price_usd} | ₽ ${price_rub}
 \`\`\``
@@ -262,7 +262,7 @@ bot.hears('!time', async (ctx) => {
  */
 bot.hears('!list', async (ctx) => {
   const text = Object.keys(ctx.index)
-    .map((key) => `\n${ctx.index[key]} /${key}`)
+    .map((key) => `\n${ctx.index[key]} \`!${key}\``)
     .join('')
 
   await ctx.replyWithMarkdown(text).catch(debug)
@@ -312,6 +312,25 @@ bot.action(/^\/rates\/(\w+)$/, async (ctx) => {
  * @param {TelegrafContext} ctx The bot's context
  */
 bot.action(/^\/noop$/, async (ctx) => ctx.answerCbQuery())
+
+/**
+ * Handles the help command
+ */
+bot.command('help', async (ctx) => {
+  const message = await ctx.replyWithMarkdown(`
+*Usage:*
+
+\`!list\` - List of all supported currencies without rates
+\`!rates\` - Paginated list of all supported currencies with rates
+\`!{TICKER}\` - Show rate of exact currency by its ticker
+`)
+
+  if (message) {
+    setTimeout(() => {
+      ctx.deleteMessage(message.message_id)
+    }, 7000)
+  }
+})
 
 /**
  * Init the bot
