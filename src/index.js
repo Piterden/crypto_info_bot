@@ -332,6 +332,14 @@ bot.command('help', async (ctx) => {
   }
 })
 
+// bot.command('leave', async (ctx) => {
+//   ctx.tg.leaveChat(ctx.chat.id)
+// })
+
+// bot.on('inline_query', async (ctx) => {
+
+// })
+
 /**
  * Init the bot
  *
