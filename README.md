@@ -1,6 +1,6 @@
 # Crypto Info Bot
 
-[![Build Status](https://travis-ci.com/Piterden/crypto_info_bot.svg?branch=master)](https://travis-ci.com/Piterden/crypto_info_bot)
+![Travis (.org)](https://img.shields.io/travis/Piterden/crypto_info_bot.svg?style=for-the-badge)![GitHub search hit counter](https://img.shields.io/github/search/Piterden/crypto_info_bot/rates.svg?style=for-the-badge)![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Piterden/crypto_info_bot.svg?style=for-the-badge)
 
 ## Overview
 
@@ -10,21 +10,21 @@ The Telegram bot for currency rates monitoring. It shows the top 100 currencies 
 
 There is a list of static commands:
 
-- **`/list`** - shows the list of supported coins as commands.
+- **`!list`** - shows the list of supported coins as commands.
 
-  ![1552525021443](docs/1552525021443.png)
+  ![cib_1](docs/cib_1.png)
 
-- **`/rates`** - shows the paginated list of supported coins with rates inline.
+- **`!rates`** - shows the paginated list of supported coins with rates inline.
 
-  ![1552525125821](docs/1552525125821.png)
+  ![cib_2](docs/cib_2.png)
 
-- **`/time`** - just a checker the real-time features are available.
+- **`!time`** - just a checker the real-time features are available.
 
-  ![1552525165382](docs/1552525165382.png)
+  ![cib_3](docs/cib_3.png)
 
-Also, there are dynamically generated commands which are equal to coins tickers. For example **`/btc`** or **`/ltc`**.
+Also, there are dynamically generated commands which are equal to coins tickers. For example **`!btc`** or **`!ltc`**.
 
-![1552525214311](docs/1552525214311.png)
+![cib_4](docs/cib_4.png)
 
 ## Contributing
 
@@ -35,3 +35,4 @@ Also, there are dynamically generated commands which are equal to coins tickers.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/Piterden/chessbot/blob/master/LICENSE.md) file for details
+

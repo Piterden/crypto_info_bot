@@ -153,6 +153,17 @@ $ ${price_usd} | ₽ ${price_rub}
 \`\`\``
 
 /**
+ * A currency message small template
+ *
+ * @param {Object} rate The rate object
+ * @param {String} rate.symbol The symbol
+ * @param {Number} rate.price_usd The price usd
+ * @return {String}
+ */
+const lineTemplateMd = ({ symbol, price_usd }) => `
+*(${symbol})* \`\`\`${price_usd}\`\`\``
+
+/**
  * Map command listaners
  *
  * @param {Object[]} rates The rates
@@ -269,6 +280,20 @@ bot.hears('!list', async (ctx) => {
 })
 
 /**
+ * The currencies list command
+ *
+ * @param {TelegrafContext} ctx The bot's context
+ */
+bot.hears('!pin', async (ctx) => {
+  const text = Object.keys(ctx.index)
+    .slice(0, 3)
+    .map((key) => `${lineTemplateMd(ctx.index[key])}`)
+    .join('')
+
+  await ctx.replyWithMarkdown(text).catch(debug)
+})
+
+/**
  * Change page action
  *
  * @param {TelegrafContext} ctx The bot's context
@@ -360,4 +385,3 @@ const run = async (instance) => {
 run(bot).then((instance) => {
   instance.startPolling()
 })
-
