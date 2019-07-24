@@ -357,6 +357,39 @@ bot.command('help', async (ctx) => {
   }
 })
 
+bot.on('inline_query', async (ctx) => {
+  const { data: rates } = await getRates(0, 50).catch(console.log)
+  // const match = ctx.inlineQuery.query.match(/^\s*(\d+)::(\d+)::(\d+)\s*$/)
+
+  await ctx.answerInlineQuery(rates.map(({
+    name, symbol, price_usd, price_rub,
+    percent_change_1h: hour,
+    percent_change_24h: day,
+    percent_change_7d: week,
+  }, index) => ({
+    type: 'article',
+    id: index + 1,
+    title: `${name} ${symbol}`,
+    description: `$ ${price_usd}
+₽ ${price_rub}`,
+    thumb_url: `https://crossword.live/coins/${symbol.toLowerCase()}Icon.png`,
+    thumb_width: 24,
+    thumb_height: 24,
+    input_message_content: {
+      message_text: templateMd({
+        name, symbol, price_usd, price_rub,
+        percent_change_1h: hour,
+        percent_change_24h: day,
+        percent_change_7d: week,
+      }),
+      parse_mode: 'Markdown',
+    },
+  })),
+  {
+    is_personal: true,
+    cache_time: 0,
+  })
+})
 // bot.command('leave', async (ctx) => {
 //   ctx.tg.leaveChat(ctx.chat.id)
 // })
