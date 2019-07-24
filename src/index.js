@@ -358,8 +358,13 @@ bot.command('help', async (ctx) => {
 })
 
 bot.on('inline_query', async (ctx) => {
-  const { data: rates } = await getRates(0, 50).catch(console.log)
-  // const match = ctx.inlineQuery.query.match(/^\s*(\d+)::(\d+)::(\d+)\s*$/)
+  let { data: rates } = await getRates(0, 50).catch(console.log)
+
+  if (ctx.inlineQuery.query) {
+    const re = new RegExp(ctx.inlineQuery.query, 'i')
+
+    rates = rates.filter(({ name, symbol }) => name.match(re) || symbol.match(re))
+  }
 
   await ctx.answerInlineQuery(rates.map(({
     name, symbol, price_usd, price_rub,
@@ -369,7 +374,7 @@ bot.on('inline_query', async (ctx) => {
   }, index) => ({
     type: 'article',
     id: index + 1,
-    title: `${name} ${symbol}`,
+    title: `[${symbol}] ${name}`,
     description: `$ ${price_usd}
 ₽ ${price_rub}`,
     thumb_url: `https://crossword.live/coins/${symbol.toLowerCase()}Icon.png`,
