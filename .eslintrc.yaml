@@ -12,6 +12,11 @@ rules:
   unicorn/filename-case: off
   class-methods-use-this: off
   import/no-default-export: off
+  unicorn/prevent-abbreviations:
+    - error
+    -
+      whitelist:
+        ctx: true
   curly:
     - error
   comma-dangle:

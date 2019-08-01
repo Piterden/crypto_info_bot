@@ -3,10 +3,10 @@
  *
  * @author Denis Efremov <efremov.a.denis@gmail.com>
  */
-require('dotenv').load()
+require('dotenv').config()
 
 const axios = require('axios')
-const winston = require('winston')
+// const winston = require('winston')
 const { inspect } = require('util')
 const Telegraf = require('telegraf')
 
@@ -31,14 +31,14 @@ const debug = (data) => console.log(inspect(data, {
   depth: 10,
 }))
 
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.json(),
-  transports: [
-    new winston.transports.File({ filename: 'log/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'log/combined.log' }),
-  ],
-})
+// const logger = winston.createLogger({
+//   level: 'info',
+//   format: winston.format.json(),
+//   transports: [
+//     new winston.transports.File({ filename: 'log/error.log', level: 'error' }),
+//     new winston.transports.File({ filename: 'log/combined.log' }),
+//   ],
+// })
 
 const formattedTime = (date) => date.toTimeString()
 const formattedDate = (date) => date.toDateString()
@@ -219,11 +219,11 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
   return acc
 }, {})
 
-bot.use((ctx, next) => {
-  logger.log({ level: 'info', message: ctx.message })
-  debug(ctx.message)
-  next()
-})
+// bot.use((ctx, next) => {
+//   logger.log({ level: 'info', message: ctx.message })
+//   debug(ctx.message)
+//   next()
+// })
 
 /**
  * The rates command
@@ -358,12 +358,22 @@ bot.command('help', async (ctx) => {
 })
 
 bot.on('inline_query', async (ctx) => {
-  let { data: rates } = await getRates(0, 50).catch(console.log)
+  debug(ctx)
+  const offset = Number(ctx.inlineQuery.offset) || 0
+  let rates
+
+  if (!ctx.inlineQuery.query) {
+    rates = await getRates(0 + offset, 50).catch(console.log)
+    rates = rates.data
+  }
 
   if (ctx.inlineQuery.query) {
     const re = new RegExp(ctx.inlineQuery.query, 'i')
 
-    rates = rates.filter(({ name, symbol }) => name.match(re) || symbol.match(re))
+    rates = await getRates().catch(console.log)
+    rates = rates.data
+      .filter(({ name, symbol }) => name.match(re) || symbol.match(re))
+      .slice(0 + offset, 50 + offset)
   }
 
   await ctx.answerInlineQuery(rates.map(({
@@ -373,13 +383,13 @@ bot.on('inline_query', async (ctx) => {
     percent_change_7d: week,
   }, index) => ({
     type: 'article',
-    id: index + 1,
-    title: `[${symbol}] ${name}`,
+    id: symbol.toLowerCase(),
+    title: `${index + 1 + offset} [${symbol}] ${name}`,
     description: `$ ${price_usd}
 ₽ ${price_rub}`,
-    thumb_url: `https://crossword.live/coins/${symbol.toLowerCase()}Icon.png`,
-    thumb_width: 24,
-    thumb_height: 24,
+    thumb_url: `https://cryptoicons.org/api/icon/${symbol.toLowerCase()}/128`,
+    thumb_width: 128,
+    thumb_height: 128,
     input_message_content: {
       message_text: templateMd({
         name, symbol, price_usd, price_rub,
@@ -393,6 +403,7 @@ bot.on('inline_query', async (ctx) => {
   {
     is_personal: true,
     cache_time: 0,
+    next_offset: 50 + offset,
   })
 })
 // bot.command('leave', async (ctx) => {
