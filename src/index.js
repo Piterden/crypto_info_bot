@@ -454,7 +454,7 @@ const updateStore = async (instance) => {
     updateStore(instance)
   }, 30000)
 
-  return data
+  return [...instance.context.ratesStore.values()]
 }
 
 /**
