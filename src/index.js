@@ -25,11 +25,12 @@ const {
  * @param {Mixed} data The data
  * @return {Mixed}
  */
-const debug = (data) => console.log(inspect(data, {
-  showHidden: true,
-  colors: true,
-  depth: 10,
-}))
+const debug = (data) => () => {}
+// console.log(inspect(data, {
+//   showHidden: true,
+//   colors: true,
+//   depth: 10,
+// }))
 
 // const logger = winston.createLogger({
 //   level: 'info',
@@ -85,8 +86,9 @@ const pagination = (namespace, page, total) => ({
  * @param {Number} limit The limit
  * @return {Promise} The rates
  */
-const getRates = (start, limit) => {
-  let url = `${API_URL}?convert=RUB`
+const getRates = (start = 0, limit = 200, id = '') => {
+  id = id ? `${id}/` : ''
+  let url = `${API_URL}${id}?convert=RUB`
 
   if (limit) {
     url += `&limit=${limit}`
@@ -358,22 +360,31 @@ bot.command('help', async (ctx) => {
 })
 
 bot.on('inline_query', async (ctx) => {
-  debug(ctx)
   const offset = Number(ctx.inlineQuery.offset) || 0
-  let rates
+  let rates = []
 
   if (!ctx.inlineQuery.query) {
-    rates = await getRates(0 + offset, 50).catch(console.log)
+    rates = await getRates(offset, 50).catch(debug)
     rates = rates.data
   }
 
   if (ctx.inlineQuery.query) {
     const re = new RegExp(ctx.inlineQuery.query, 'i')
 
-    rates = await getRates().catch(console.log)
-    rates = rates.data
-      .filter(({ name, symbol }) => name.match(re) || symbol.match(re))
-      .slice(0 + offset, 50 + offset)
+    rates = []
+    rates.push(
+      ...[...new Set(ctx.ratesStore.keys())]
+        .filter((key) => {
+          const { name, symbol } = ctx.ratesStore.get(key)
+
+          if (key.match(re) || name.match(re) || symbol.match(re)) {
+            return true
+          }
+          return false
+        })
+        .map((key) => ctx.ratesStore.get(key))
+        .slice(offset, 50)
+    )
   }
 
   await ctx.answerInlineQuery(rates.map(({
@@ -381,25 +392,27 @@ bot.on('inline_query', async (ctx) => {
     percent_change_1h: hour,
     percent_change_24h: day,
     percent_change_7d: week,
-  }, index) => ({
-    type: 'article',
-    id: symbol.toLowerCase(),
-    title: `${index + 1 + offset} [${symbol}] ${name}`,
-    description: `$ ${price_usd}
-₽ ${price_rub}`,
-    thumb_url: `https://cryptoicons.org/api/icon/${symbol.toLowerCase()}/128`,
-    thumb_width: 128,
-    thumb_height: 128,
-    input_message_content: {
-      message_text: templateMd({
-        name, symbol, price_usd, price_rub,
-        percent_change_1h: hour,
-        percent_change_24h: day,
-        percent_change_7d: week,
-      }),
-      parse_mode: 'Markdown',
-    },
-  })),
+  }, index) => symbol
+    ? ({
+      type: 'article',
+      id: symbol.toLowerCase(),
+      title: `${index + 1 + offset} [${symbol}] ${name}`,
+      description: `$ ${price_usd}
+  ₽ ${price_rub}`,
+      thumb_url: `https://cryptoicons.org/api/icon/${symbol.toLowerCase()}/128`,
+      thumb_width: 128,
+      thumb_height: 128,
+      input_message_content: {
+        message_text: templateMd({
+          name, symbol, price_usd, price_rub,
+          percent_change_1h: hour,
+          percent_change_24h: day,
+          percent_change_7d: week,
+        }),
+        parse_mode: 'Markdown',
+      },
+    })
+    : false).filter(Boolean),
   {
     is_personal: true,
     cache_time: 0,
@@ -411,8 +424,38 @@ bot.on('inline_query', async (ctx) => {
 // })
 
 // bot.on('inline_query', async (ctx) => {
-
+// {
+//   type: 'article',
+//   id: '__nope',
+//   title: `Nothing there for ${ctx.inlineQuery.query} (((`,
+// }
 // })
+
+const fetchRatesPiece = async (offset, instance) => {
+  const { data } = await getRates(offset).catch(console.log)
+
+  data.forEach((rate) => {
+    instance.context.ratesStore.set(rate.symbol.toLowerCase(), rate)
+  })
+
+  return data
+}
+
+const updateStore = async (instance) => {
+  let offset = 0
+  let data = await fetchRatesPiece(offset, instance)
+
+  while (data.length === 100) {
+    offset += 100
+    data = await fetchRatesPiece(offset, instance)
+  }
+
+  setTimeout(() => {
+    updateStore(instance)
+  }, 30000)
+
+  return data
+}
 
 /**
  * Init the bot
@@ -420,7 +463,9 @@ bot.on('inline_query', async (ctx) => {
  * @param {TelegrafContext} ctx The bot's context
  */
 const run = async (instance) => {
-  const { data } = await getRates().catch(console.log)
+  instance.context.ratesStore = new Map()
+
+  const data = await updateStore(instance)
 
   instance.context.index = await mapCommands(data)
   return instance
