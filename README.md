@@ -1,6 +1,6 @@
 # Crypto Info Bot
 
-![Travis (.org)](https://img.shields.io/travis/Piterden/crypto_info_bot.svg?style=for-the-badge)![GitHub search hit counter](https://img.shields.io/github/search/Piterden/crypto_info_bot/rates.svg?style=for-the-badge)![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Piterden/crypto_info_bot.svg?style=for-the-badge)
+![Travis (.org)](https://img.shields.io/travis/com/Piterden/crypto_info_bot.svg?style=for-the-badge)![GitHub search hit counter](https://img.shields.io/github/search/Piterden/crypto_info_bot/rates.svg?style=for-the-badge)![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Piterden/crypto_info_bot.svg?style=for-the-badge)
 
 ## Overview
 

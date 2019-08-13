@@ -213,7 +213,7 @@ const mapCommands = async (rates) => rates.reduce((acc, rate) => {
         clearInterval(intervalId)
       })
       message.text = text
-    }, 5000)
+    }, 15000)
   })
 
   acc[command] = rate.id
